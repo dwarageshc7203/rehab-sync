@@ -1,275 +1,203 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doctor Dashboard - Rehab Sync</title>
-    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
-        h1 { color: #333; }
-        .container { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        #video { width: 100%; border: 2px solid #333; border-radius: 4px; }
-        canvas { width: 100%; height: 200px; }
-        .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
-        .metric { padding: 15px; background: #f0f0f0; border-radius: 4px; text-align: center; }
-        .metric-value { font-size: 32px; font-weight: bold; color: #4CAF50; }
-        .metric-label { font-size: 14px; color: #666; }
-        button { padding: 10px 20px; margin: 5px; cursor: pointer; font-size: 16px; }
-        .active { background: #4CAF50; color: white; border: none; }
-        .primary { background: #2196F3; color: white; border: none; }
-        input { padding: 8px; margin: 5px; }
-        #issues { color: #f44336; font-size: 14px; }
-        .report { background: #fff3cd; padding: 15px; border-radius: 4px; margin: 10px 0; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Doctor Dashboard - Rehab Sync</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+    h1 { color: #333; }
+    .container { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+    .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    canvas { width: 100%; height: 200px; }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+    .metric { padding: 15px; background: #f0f0f0; border-radius: 4px; text-align: center; }
+    .metric-value { font-size: 32px; font-weight: bold; color: #4CAF50; }
+    .metric-label { font-size: 14px; color: #666; }
+    button { padding: 10px 20px; margin: 5px; cursor: pointer; font-size: 16px; }
+    .active { background: #4CAF50; color: white; border: none; }
+    .primary { background: #2196F3; color: white; border: none; }
+    input { padding: 8px; margin: 5px; }
+    #issues { color: #f44336; font-size: 14px; }
+    .report { background: #fff3cd; padding: 15px; border-radius: 4px; margin: 10px 0; }
+</style>
 </head>
 <body>
-    <h1>Doctor Dashboard - Live Monitoring</h1>
+<h1>Doctor Dashboard - Live Monitoring</h1>
 
-    <div style="margin-bottom: 20px;">
-        <label>Session ID: <input type="number" id="sessionId" placeholder="Enter session ID"></label>
-        <button onclick="startMonitoring()" class="active">Start Monitoring</button>
-        <button onclick="generateReport()" class="primary">Generate Report</button>
-    </div>
+<div style="margin-bottom: 20px;">
+    <label>Session ID: <input type="number" id="sessionId" placeholder="Enter session ID"></label>
+    <button onclick="startMonitoring()" class="active">Start Monitoring</button>
+    <button onclick="generateReport()" class="primary">Generate Report</button>
+</div>
 
-    <div class="container">
-        <div>
-            <div class="card">
-                <h3>Live Video Feed</h3>
-                <video id="video" autoplay></video>
-                <div id="cvOverlay" style="margin-top: 10px;">
-                    <p>Angle: <span id="angle">-</span>°</p>
-                    <p>Stage: <span id="stage">-</span></p>
-                    <p id="issues"></p>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>Muscle Activation</h3>
-                <canvas id="iotChart"></canvas>
-            </div>
+<div class="container">
+    <div>
+        <div class="card">
+            <h3>CV Analysis</h3>
+            <p>Angle: <span id="angle">-</span>°</p>
+            <p>Stage: <span id="stage">-</span></p>
+            <p id="issues">-</p>
         </div>
 
-        <div>
-            <div class="card">
-                <h3>Real-time Metrics</h3>
-                <div class="metrics">
-                    <div class="metric">
-                        <div class="metric-value" id="repCount">0</div>
-                        <div class="metric-label">Reps Completed</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-value" id="accuracy">0%</div>
-                        <div class="metric-label">Accuracy</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-value" id="activation">0%</div>
-                        <div class="metric-label">Muscle Activation</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-value" id="peakActivation">0%</div>
-                        <div class="metric-label">Peak Activation</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card" id="reportCard" style="display: none;">
-                <h3>Session Report</h3>
-                <div id="reportContent"></div>
-            </div>
+        <div class="card">
+            <h3>Muscle Activation</h3>
+            <canvas id="iotChart"></canvas>
         </div>
     </div>
 
-    <script>
-        const BACKEND_URL = 'http://localhost:3000';
-        const CV_SERVICE_URL = 'http://localhost:5000';
-        
-        let socket = null;
-        let currentSessionId = null;
-        let cvProcessing = false;
-        let videoElement = document.getElementById('video');
-        
-        // Chart setup
-        let iotChart = null;
-        let iotData = { labels: [], data: [] };
+    <div>
+        <div class="card">
+            <h3>Real-time Metrics</h3>
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value" id="repCount">0</div>
+                    <div class="metric-label">Reps Completed</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="accuracy">0%</div>
+                    <div class="metric-label">Accuracy</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="activation">0%</div>
+                    <div class="metric-label">Muscle Activation</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="peakActivation">0%</div>
+                    <div class="metric-label">Peak Activation</div>
+                </div>
+            </div>
+        </div>
 
-        function initChart() {
-            const ctx = document.getElementById('iotChart').getContext('2d');
-            iotChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: iotData.labels,
-                    datasets: [{
-                        label: 'Muscle Activation %',
-                        data: iotData.data,
-                        borderColor: '#4CAF50',
-                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { beginAtZero: true, max: 100 }
-                    }
-                }
-            });
+        <div class="card" id="reportCard" style="display: none;">
+            <h3>Session Report</h3>
+            <div id="reportContent"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const CV_SERVICE_URL = 'http://localhost:5000';
+const IOT_SERVICE_URL = 'http://localhost:5000';
+let currentSessionId = null;
+
+let iotChart = null;
+let iotData = { labels: [], data: [] };
+
+function initChart() {
+    const ctx = document.getElementById('iotChart').getContext('2d');
+    iotChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: iotData.labels,
+            datasets: [{
+                label: 'Muscle Activation %',
+                data: iotData.data,
+                borderColor: '#4CAF50',
+                backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true, max: 100 } }
+        }
+    });
+}
+
+function startMonitoring() {
+    currentSessionId = parseInt(document.getElementById('sessionId').value);
+    if (!currentSessionId) { alert('Enter session ID'); return; }
+    initChart();
+    setInterval(fetchAnalysis, 500);
+    setInterval(fetchIoT, 500);
+    alert('Monitoring started for session ' + currentSessionId);
+}
+
+async function fetchAnalysis() {
+    try {
+        const res = await fetch(`${CV_SERVICE_URL}/get_analysis`);
+        if (!res.ok) return;
+        const data = await res.json();
+        updateCVDisplay(data);
+    } catch (err) {
+        console.error('Error fetching CV data:', err);
+    }
+}
+
+async function fetchIoT() {
+    try {
+        const res = await fetch(`${IOT_SERVICE_URL}/iot_latest?session_id=${currentSessionId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const timestamp = new Date().toLocaleTimeString();
+        iotData.labels.push(timestamp);
+        iotData.data.push(data.activation_percent || 0);
+
+        if (iotData.labels.length > 50) {
+            iotData.labels.shift();
+            iotData.data.shift();
         }
 
-        async function startMonitoring() {
-            currentSessionId = parseInt(document.getElementById('sessionId').value);
-            if (!currentSessionId) {
-                alert('Please enter a session ID');
-                return;
-            }
+        iotChart.update();
 
-            // Initialize WebSocket
-            socket = io(BACKEND_URL);
+        document.getElementById('activation').textContent = (data.activation_percent || 0).toFixed(1) + '%';
+        document.getElementById('peakActivation').textContent = (data.peak_activation || 0).toFixed(1) + '%';
+    } catch(err) { console.error('Error fetching IoT:', err); }
+}
 
-            socket.on('cv:analysis', (data) => {
-                updateCVDisplay(data);
-            });
+function updateCVDisplay(data) {
+    document.getElementById('angle').textContent = data.angle?.toFixed(1) || '-';
+    document.getElementById('stage').textContent = data.stage || '-';
+    document.getElementById('repCount').textContent = data.reps || 0;
+    document.getElementById('accuracy').textContent = (data.accuracy || 0).toFixed(1) + '%';
+    document.getElementById('issues').textContent = (data.issues?.length > 0)
+        ? 'Issues: ' + data.issues.join(', ')
+        : 'Form looks good!';
+}
 
-            socket.on('iot:data', (data) => {
-                updateIoTDisplay(data);
-            });
+function generateReport() {
+    const report = `
+        <div class="report">
+            <p>Session ID: ${currentSessionId}</p>
+            <p>Reps Completed: ${document.getElementById('repCount').textContent}</p>
+            <p>Accuracy: ${document.getElementById('accuracy').textContent}</p>
+            <p>Peak Muscle Activation: ${document.getElementById('peakActivation').textContent}</p>
+        </div>
+    `;
+    document.getElementById('reportContent').innerHTML = report;
+    document.getElementById('reportCard').style.display = 'block';
+}
 
-            // Start video stream
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                videoElement.srcObject = stream;
-                startCVProcessing();
-            } catch (err) {
-                alert('Camera access denied: ' + err.message);
-            }
+async function fetchIoT() {
+    if (!currentSessionId) return;
+    try {
+        const res = await fetch(`http://localhost:3000/iot/latest?session_id=${currentSessionId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        updateIoTDisplay(data);
+    } catch (err) {
+        console.error('Error fetching IoT data:', err);
+    }
+}
 
-            initChart();
-            alert('Monitoring started for session ' + currentSessionId);
-        }
+function updateIoTDisplay(data) {
+    iotData.labels.push(new Date().toLocaleTimeString());
+    iotData.data.push(data.activationPercent || 0);
 
-        async function startCVProcessing() {
-            if (cvProcessing) return;
-            cvProcessing = true;
+    if (iotData.labels.length > 50) {
+        iotData.labels.shift();
+        iotData.data.shift();
+    }
 
-            setInterval(async () => {
-                if (!videoElement.videoWidth) return;
+    iotChart.update();
+    document.getElementById('activation').textContent = (data.activationPercent || 0).toFixed(1) + '%';
+    document.getElementById('peakActivation').textContent = Math.max(...iotData.data).toFixed(1) + '%';
+}
 
-                const canvas = document.createElement('canvas');
-                canvas.width = videoElement.videoWidth;
-                canvas.height = videoElement.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(videoElement, 0, 0);
-
-                const frameData = canvas.toDataURL('image/jpeg', 0.8);
-
-                try {
-                    const response = await fetch(`${CV_SERVICE_URL}/analyze`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            session_id: currentSessionId,
-                            frame: frameData
-                        })
-                    });
-
-                    const result = await response.json();
-                    if (result.success) {
-                        // Send to backend
-                        await fetch(`${BACKEND_URL}/cv/analyze`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                sessionId: currentSessionId,
-                                frameNumber: Date.now(),
-                                repCount: result.analysis.rep_count,
-                                currentAngle: result.analysis.angle,
-                                accuracyScore: result.analysis.accuracy,
-                                issuesDetected: result.analysis.issues
-                            })
-                        });
-                    }
-                } catch (err) {
-                    console.error('CV processing error:', err);
-                }
-            }, 100); // Process every 100ms
-        }
-
-        function updateCVDisplay(data) {
-            document.getElementById('angle').textContent = data.currentAngle.toFixed(1);
-            document.getElementById('stage').textContent = data.stage || '-';
-            document.getElementById('repCount').textContent = data.repCount;
-            document.getElementById('accuracy').textContent = data.accuracyScore.toFixed(1) + '%';
-            
-            const issuesElem = document.getElementById('issues');
-            if (data.issuesDetected && data.issuesDetected.length > 0) {
-                issuesElem.textContent = 'Issues: ' + data.issuesDetected.join(', ');
-            } else {
-                issuesElem.textContent = 'Form looks good!';
-            }
-        }
-
-        function updateIoTDisplay(data) {
-            document.getElementById('activation').textContent = data.activationPercent.toFixed(1) + '%';
-            
-            const currentPeak = parseFloat(document.getElementById('peakActivation').textContent) || 0;
-            if (data.activationPercent > currentPeak) {
-                document.getElementById('peakActivation').textContent = data.activationPercent.toFixed(1) + '%';
-            }
-
-            // Update chart
-            const time = new Date().toLocaleTimeString();
-            iotData.labels.push(time);
-            iotData.data.push(data.activationPercent);
-
-            if (iotData.labels.length > 50) {
-                iotData.labels.shift();
-                iotData.data.shift();
-            }
-
-            if (iotChart) {
-                iotChart.update();
-            }
-        }
-
-        async function generateReport() {
-            if (!currentSessionId) {
-                alert('No active session');
-                return;
-            }
-
-            try {
-                const response = await fetch(`${BACKEND_URL}/reports/generate/${currentSessionId}`, {
-                    method: 'POST'
-                });
-
-                const report = await response.json();
-                displayReport(report);
-            } catch (err) {
-                alert('Failed to generate report: ' + err.message);
-            }
-        }
-
-        function displayReport(report) {
-            const reportCard = document.getElementById('reportCard');
-            const reportContent = document.getElementById('reportContent');
-
-            reportContent.innerHTML = `
-                <p><strong>Total Reps:</strong> ${report.totalReps}</p>
-                <p><strong>Avg Accuracy:</strong> ${report.avgAccuracy.toFixed(1)}%</p>
-                <p><strong>Avg Activation:</strong> ${report.avgMuscleActivation.toFixed(1)}%</p>
-                <p><strong>Peak Activation:</strong> ${report.peakMuscleActivation.toFixed(1)}%</p>
-                <p><strong>Issues:</strong> ${report.issuesDetected.join(', ') || 'None'}</p>
-                <h4>Recommendations:</h4>
-                <ul>${report.recommendations.map(r => `<li>${r}</li>`).join('')}</ul>
-            `;
-
-            reportCard.style.display = 'block';
-        }
-    </script>
+</script>
 </body>
 </html>
