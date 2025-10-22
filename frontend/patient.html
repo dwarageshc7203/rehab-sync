@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient - Rehab Sync</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        h1 { color: #333; }
+        button { padding: 10px 20px; margin: 10px 5px; font-size: 16px; cursor: pointer; }
+        .active { background: #4CAF50; color: white; }
+        .inactive { background: #f44336; color: white; }
+        #video { width: 100%; max-width: 640px; border: 2px solid #333; }
+        .info { padding: 10px; background: #f0f0f0; margin: 10px 0; }
+        input, select { padding: 8px; margin: 5px; width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>Patient Interface</h1>
+    
+    <div class="info">
+        <h3>Start Session</h3>
+        <label>Patient ID: <input type="number" id="patientId" value="1"></label><br>
+        <label>Doctor ID: <input type="number" id="doctorId" value="1"></label><br>
+        <button onclick="startSession()" class="active">Start Session</button>
+        <button onclick="endSession()" class="inactive" id="endBtn" disabled>End Session</button>
+    </div>
+
+    <div class="info" id="sessionInfo" style="display: none;">
+        <h3>Active Session</h3>
+        <p>Session ID: <span id="sessionId">-</span></p>
+        <p>Exercise: <span id="exercise">Bicep Curls</span></p>
+    </div>
+
+    <div>
+        <h3>Camera Feed</h3>
+        <video id="video" autoplay></video>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'http://localhost:3000';
+        let currentSession = null;
+        let videoStream = null;
+        let videoElement = document.getElementById('video');
+
+        // Start video stream
+        async function startVideo() {
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480 } 
+                });
+                videoElement.srcObject = videoStream;
+            } catch (err) {
+                alert('Camera access denied: ' + err.message);
+            }
+        }
+
+        // Start session
+        async function startSession() {
+            const patientId = parseInt(document.getElementById('patientId').value);
+            const doctorId = parseInt(document.getElementById('doctorId').value);
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/sessions/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ patientId, doctorId })
+                });
+
+                const data = await response.json();
+                currentSession = data;
+
+                document.getElementById('sessionId').textContent = data.id;
+                document.getElementById('sessionInfo').style.display = 'block';
+                document.getElementById('endBtn').disabled = false;
+
+                await startVideo();
+                alert('Session started! Session ID: ' + data.id);
+            } catch (err) {
+                alert('Failed to start session: ' + err.message);
+            }
+        }
+
+        // End session
+        async function endSession() {
+            if (!currentSession) return;
+
+            try {
+                await fetch(`${BACKEND_URL}/sessions/${currentSession.id}/end`, {
+                    method: 'POST'
+                });
+
+                if (videoStream) {
+                    videoStream.getTracks().forEach(track => track.stop());
+                }
+
+                document.getElementById('sessionInfo').style.display = 'none';
+                document.getElementById('endBtn').disabled = true;
+                currentSession = null;
+
+                alert('Session ended!');
+            } catch (err) {
+                alert('Failed to end session: ' + err.message);
+            }
+        }
+    </script>
+</body>
+</html>
