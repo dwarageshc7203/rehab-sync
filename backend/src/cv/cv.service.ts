@@ -10,10 +10,10 @@ export class CvService {
     private cvAnalysisRepository: Repository<CvAnalysis>,
   ) {}
 
-  async saveAnalysis(data: any): Promise<CvAnalysis> {
-    const analysis = this.cvAnalysisRepository.create(data);
-    return this.cvAnalysisRepository.save(analysis);
-  }
+async saveAnalysis(data: Partial<CvAnalysis>[]): Promise<CvAnalysis[]> {
+  const analysisEntities = data.map(d => this.cvAnalysisRepository.create(d));
+  return await this.cvAnalysisRepository.save(analysisEntities);
+}
 
   async getSessionAnalysis(sessionId: number): Promise<CvAnalysis[]> {
     return this.cvAnalysisRepository.find({
